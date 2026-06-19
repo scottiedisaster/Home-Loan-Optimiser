@@ -24,6 +24,61 @@ function fmtYM(months) {
   return y + 'y ' + m + 'mo';
 }
 
+// Add N months to a date, returning a new Date
+function addMonths(date, months) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+// Number of days in the calendar month containing `date` (handles leap years)
+function daysInMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+// Compute "paid off since start" progress data.
+// Returns null if no original loan amount has been entered.
+// currentBalance/currSim are passed in so this stays in sync with the
+// same simulation results already shown elsewhere on the page.
+function getProgressData(currentBalance, currSim) {
+  const originalBalance = vEl('original-balance');
+  if (!originalBalance) return null;
+
+  const startDateStr = document.getElementById('loan-start-date')?.value || '';
+  const paidOff       = Math.max(0, originalBalance - currentBalance);
+  const paidOffPct    = (paidOff / originalBalance) * 100;
+
+  let elapsedTxt = '';
+  const start = startDateStr ? new Date(startDateStr) : null;
+  if (start && !isNaN(start.getTime())) {
+    const now = new Date();
+    const elapsedMonths = Math.max(0, (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()));
+    elapsedTxt = fmtYM(elapsedMonths);
+  }
+
+  const payoffDate    = addMonths(new Date(), currSim.months);
+  const payoffDateTxt = payoffDate.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+
+  return { originalBalance, paidOff, paidOffPct, elapsedTxt, payoffDateTxt };
+}
+
+// Update the "Loan progress" banner on screen
+function updateProgress(currentBalance, currSim) {
+  const mainEl = document.getElementById('progress-banner-main');
+  const descEl = document.getElementById('progress-banner-desc');
+  if (!mainEl || !descEl) return;
+
+  const p = getProgressData(currentBalance, currSim);
+  if (!p) {
+    mainEl.textContent = 'Enter original loan amount to track progress';
+    descEl.textContent = 'Add your starting balance & loan start date above';
+    return;
+  }
+
+  mainEl.textContent = fmt(p.paidOff) + ' paid off (' + p.paidOffPct.toFixed(0) + '%)' + (p.elapsedTxt ? ' over ' + p.elapsedTxt : '');
+  descEl.textContent = 'Projected full payoff: ' + p.payoffDateTxt + ' at your current strategy';
+}
+
 // Read a numeric input by id (returns 0 if missing / blank)
 function vEl(id) {
   const el = document.getElementById(id);
@@ -378,6 +433,15 @@ function calculate() {
   setTxt('m-offset-total',      fmt(totalOffset) + ' total offset');
   setTxt('m-annual-saving',     fmt(annualSaving) + '/yr');
 
+  // Interest charged this billing cycle, split into a daily rate using
+  // the ACTUAL number of days in the current calendar month.
+  const thisMonthInterest = currSim.monthlyData[0]?.interest || 0;
+  const today             = new Date();
+  const monthDays         = daysInMonth(today);
+  const dailyInterest     = thisMonthInterest / monthDays;
+  setTxt('m-monthly-interest', fmt(thisMonthInterest) + '/mo');
+  setTxt('m-daily-interest',   fmtFull(dailyInterest) + '/day · ' + monthDays + ' days this month');
+
 
   setTxt('banner-main', fmt(intSaved) + ' saved · ' + fmtYM(Math.max(0, timeSaved)) + ' sooner');
   setTxt('banner-desc', 'Current strategy vs minimum repayments — paid off ' + fmtYM(Math.max(0, timeSaved)) + ' earlier');
@@ -400,9 +464,17 @@ function calculate() {
     '<strong>' + fmt(currSim.totalInterest) + '</strong> total interest <span class="sep">·</span> ' +
     '<strong style="color:var(--accent)">' + fmtYM(Math.max(0, timeSaved)) + '</strong> saved vs min only';
 
-  updateChart(minSim, currSim);
+  // Chart.js is loaded from a CDN — on a flaky connection (common on
+  // mobile) it can fail to load. Don't let that take down the rest of
+  // the calculator (tables, metrics, progress banner).
+  try {
+    updateChart(minSim, currSim);
+  } catch (err) {
+    console.warn('Chart rendering skipped — Chart.js may not have loaded:', err);
+  }
   updateYearlyTable(currSim);
   updateMonthlyTable(currSim);
+  updateProgress(balance, currSim);
 
   document.getElementById('last-updated').textContent =
     'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
@@ -478,7 +550,7 @@ function confirmReset() {
 }
 
 function resetToZero() {
-  ['balance','redraw','rate','min-repay'].forEach(id => {
+  ['balance','redraw','rate','min-repay','original-balance','loan-start-date'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -523,6 +595,7 @@ function exportData() {
   const headers = [
     'balance','redraw','rate_percent',
     'min_repayment','repay_frequency','loan_type','rate_type',
+    'original_balance','loan_start_date',
     'extra_payments_json','offsets_json'
   ];
 
@@ -530,6 +603,7 @@ function exportData() {
     vEl('balance'), vEl('redraw'), vEl('rate'),
     vEl('min-repay'), document.getElementById('frequency').value,
     document.getElementById('loan-type').value, document.getElementById('rate-type').value,
+    vEl('original-balance'), document.getElementById('loan-start-date')?.value || '',
     JSON.stringify(epData), JSON.stringify(offData)
   ];
 
@@ -595,6 +669,8 @@ function loadFromCSV(csvText) {
   setVal('frequency', 'repay_frequency');
   setVal('loan-type', 'loan_type');
   setVal('rate-type', 'rate_type');
+  setVal('original-balance', 'original_balance');
+  setVal('loan-start-date',  'loan_start_date');
   updateScheduledBalance();
 
   document.getElementById('extra-payments-list').innerHTML = '';
@@ -614,11 +690,12 @@ function loadFromCSV(csvText) {
 // ── HTML Report download ──────────────────────────────────────────────────────
 function downloadReport() {
   if (!lastSimData) { toast('Calculate first'); return; }
-  const { minSim, currSim, whatifSim, balance, rate, totalOffset, extraMonthly, offsetList } = lastSimData;
+  const { minSim, currSim, balance, rate, totalOffset, recurringMonthly, offsetList } = lastSimData;
   const intSaved  = minSim.totalInterest - currSim.totalInterest;
   const timeSaved = minSim.months - currSim.months;
   const now       = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   const hasSource = offsetList.some(o => o.isRepaySource);
+  const progress  = getProgressData(balance, currSim);
 
   const yearRows = currSim.yearlyData.map(r => `
     <tr>
@@ -704,11 +781,18 @@ function downloadReport() {
       <div class="banner-desc">Current strategy vs minimum repayments only</div>
     </div>
   </div>
+  ${progress ? `<div class="banner" style="background:#eaf2fe;border-color:#b9d4f8;">
+    <div class="banner-icon">📊</div>
+    <div>
+      <div class="banner-main" style="color:#2563c7;">$${Math.round(progress.paidOff).toLocaleString('en-AU')} paid off (${progress.paidOffPct.toFixed(0)}%)${progress.elapsedTxt ? ' over ' + progress.elapsedTxt : ''}</div>
+      <div class="banner-desc">Projected full payoff: ${progress.payoffDateTxt} at current strategy</div>
+    </div>
+  </div>` : ''}
   <div class="repay-note">Repayment mode: ${repayModeNote}</div>
   <div class="inputs-grid">
     <div class="input-card"><h3>Repayment details</h3><p>
       Minimum repayment: $${vEl('min-repay').toLocaleString('en-AU')} (${freqLabel})<br>
-      Extra payments: $${Math.round(extraMonthly).toLocaleString('en-AU')}/month combined<br>
+      Extra payments: $${Math.round(recurringMonthly).toLocaleString('en-AU')}/month combined<br>
       ${epDetails}
     </p></div>
     <div class="input-card"><h3>Offset accounts</h3><p>${offsetDetails}</p></div>
@@ -764,6 +848,15 @@ function init() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', scheduleCalc);
   });
+  ['original-balance', 'loan-start-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input',  scheduleCalc);
+      el.addEventListener('change', scheduleCalc);
+    }
+  });
+  const startDateEl = document.getElementById('loan-start-date');
+  if (startDateEl) startDateEl.max = new Date().toISOString().slice(0, 10);
   document.getElementById('import-file-input').addEventListener('change', handleImport);
   updateScheduledBalance();
   calculate();
