@@ -76,6 +76,22 @@
             </div>
           </div>
 
+          <!-- Loan Progress -->
+          <div class="section-label">Loan progress</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Original loan amount ($)</label>
+              <div class="input-wrap has-prefix">
+                <span class="input-prefix">$</span>
+                <input type="number" id="original-balance" placeholder="0" step="0.01">
+              </div>
+            </div>
+            <div class="field">
+              <label>Loan start date</label>
+              <input type="date" id="loan-start-date">
+            </div>
+          </div>
+
           <!-- Interest Rate -->
           <div class="section-label">Interest rate</div>
           <div class="field-row">
@@ -170,6 +186,11 @@
             <div class="metric-val accent" id="m-annual-saving">—</div>
             <div class="metric-sub">from all offset accounts</div>
           </div>
+          <div class="metric">
+            <div class="metric-label">Interest charged</div>
+            <div class="metric-val amber" id="m-monthly-interest">—</div>
+            <div class="metric-sub" id="m-daily-interest">—</div>
+          </div>
 
         </div>
 
@@ -178,6 +199,14 @@
           <div>
             <div class="savings-main" id="banner-main">Enter your loan details to get started</div>
             <div class="savings-desc" id="banner-desc">Current strategy vs minimum repayments only</div>
+          </div>
+        </div>
+
+        <div class="savings-banner progress-banner" id="progress-banner">
+          <div class="savings-icon">📊</div>
+          <div>
+            <div class="savings-main" id="progress-banner-main">Enter original loan amount to track progress</div>
+            <div class="savings-desc" id="progress-banner-desc">Add your starting balance &amp; loan start date above</div>
           </div>
         </div>
       </div>
@@ -304,6 +333,10 @@
       </div><!-- /card -->
     </div><!-- /right col -->
   </div><!-- /main-grid -->
+
+  <footer class="app-footer">
+    Home Loan Optimiser v2.1 · For personal modelling purposes only · Consult a financial adviser for personalised advice
+  </footer>
 </div><!-- /app -->
 
 <div class="toast" id="toast"></div>
