@@ -212,6 +212,7 @@ h1 {
 
 input[type="number"],
 input[type="text"],
+input[type="date"],
 select {
   width:       100%;
   background:  var(--bg3);
@@ -225,6 +226,7 @@ select {
   transition:  border-color 0.15s, background 0.15s;
   -moz-appearance: textfield;
 }
+input[type="date"] { color-scheme: dark; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 input:focus,
@@ -413,6 +415,13 @@ select {
 }
 .savings-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
+.savings-banner.progress-banner {
+  background:   var(--blue-dim);
+  border-color: rgba(91,156,246,0.15);
+  margin-bottom: 0;
+}
+.savings-banner.progress-banner .savings-main { color: var(--blue); }
+
 /* ── Rate badge ──────────────────────────────── */
 .rate-badge {
   display:        inline-flex;
@@ -587,3 +596,79 @@ hr.div { border: none; border-top: 1px solid var(--border); margin: 0.9rem 0; }
 
 /* hidden file input */
 #import-file-input { display: none; }
+
+/* ── Footer disclaimer ───────────────────────── */
+.app-footer {
+  margin-top:     2.5rem;
+  padding-top:    1.5rem;
+  border-top:     1px solid var(--border);
+  text-align:     center;
+  font-size:      11px;
+  font-family:    var(--mono);
+  color:          var(--text3);
+  letter-spacing: 0.02em;
+}
+
+/* ── Phone / small-screen overrides ────────────
+   The 960px breakpoint above already stacks the
+   two main columns. These rules tighten things up
+   further for actual phone-width screens. ───────── */
+@media (max-width: 640px) {
+
+  .app { padding: 1.25rem 0.9rem 3rem; }
+
+  /* Header: stack the timestamp full-width, buttons into a 2x2 grid
+     instead of ad-hoc wrapping */
+  header { gap: 0.85rem; }
+  .header-actions {
+    width:                 100%;
+    display:               grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:                   0.6rem;
+  }
+  .header-actions .last-updated {
+    grid-column: 1 / -1;
+    text-align:  left;
+  }
+  .header-actions .btn {
+    justify-content: center;
+    width:            100%;
+    padding:          10px 10px;
+  }
+
+  .card-body { padding: 1.1rem 0.9rem; }
+
+  /* Stack paired/tripled inputs into one column — far easier to read
+     and tap than squeezing 2-3 fields into a phone-width row */
+  .field-row,
+  .field-row-3 { grid-template-columns: 1fr; }
+
+  /* Prevent iOS Safari's auto-zoom-on-focus, which happens on any
+     input/select with font-size under 16px */
+  input[type="number"],
+  input[type="text"],
+  input[type="date"],
+  select { font-size: 16px; }
+
+  /* Bigger, easier-to-hit remove buttons on dynamic items */
+  .remove-btn { width: 32px; height: 32px; font-size: 16px; }
+
+  /* Metrics: 3 columns is too tight on a phone — drop to 2 */
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Full-width, stacked action buttons are easier to hit with a thumb */
+  .action-row {
+    grid-template-columns: 1fr;
+    gap:                   0.6rem;
+  }
+  .reset-btn { width: 100%; }
+
+  /* Slightly larger tap area on tabs */
+  .tab { padding: 10px 14px; }
+
+  /* Smoother momentum scrolling for horizontally-scrollable areas */
+  .tabs,
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+
+  .savings-banner { flex-wrap: wrap; }
+}
