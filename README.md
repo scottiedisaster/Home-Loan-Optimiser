@@ -95,7 +95,7 @@ cd Home-Loan-Optimiser
 Then either:
 
 - **Just open it** — double-click `index.html`, or open it directly in your browser, or
-- **Serve it locally** (avoids occasional `file://` quirks in some browsers, and is generally the safer bet):
+- **Serve it locally** (avoids occasional `file://` quirks in some browsers, and is generally the safer bet)
 
   ```bash
   # Python 3
